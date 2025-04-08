@@ -3,6 +3,11 @@
 
 This integration enables Botpress to escalate conversations from a chatbot to a live agent in a HubSpot Inbox via Custom Channels. It uses the HubSpot Custom Channels API to create, send, and manage HITL (Human-in-the-Loop) conversations and agent interactions.
 
+## Note: This integration requires one of the following products or higher.
+HubSpot Sales Hub - Enterprise
+
+HubSpot Service Hub - Enterprise
+
 ## How It Works
 
 ### Conversation Start
