@@ -35,7 +35,7 @@ export const startHitl: bp.IntegrationProps['actions']['startHitl'] = async ({ c
       type: "integration",
     });
 
-    if (!userInfoState?.state.payload.email) {
+    if (!userInfoState?.state.payload.phoneNumber) {
       console.log("No userInfo found in state");
       return {
         success: false,
@@ -44,7 +44,7 @@ export const startHitl: bp.IntegrationProps['actions']['startHitl'] = async ({ c
         conversationId: "error_conversation_id",
       };; 
     }
-    const { name, email } = userInfoState.state.payload;
+    const { name, phoneNumber } = userInfoState.state.payload;
     const { channelId, channelAccountId } = state.payload;
 
     const integrationThreadId = randomUUID();
@@ -60,7 +60,7 @@ export const startHitl: bp.IntegrationProps['actions']['startHitl'] = async ({ c
       },
     });
 
-    const result = await hubspotClient.createConversation(channelId, channelAccountId, integrationThreadId, name, email, title, description);
+    const result = await hubspotClient.createConversation(channelId, channelAccountId, integrationThreadId, name, phoneNumber, title, description);
     const conversationId = result.data.conversationsThreadId
 
     console.log("HubSpot Channel Response:", result);
@@ -107,6 +107,8 @@ export const stopHitl: bp.IntegrationProps['actions']['stopHitl'] = async ({ ctx
 
 export const createUser: bp.IntegrationProps['actions']['createUser'] = async ({ client, input, ctx, logger }) => {
   try {
+    // Phone number is being stored in email field
+    // This is a workaround until we have a better solution to store phone numbers in the input.
     const { name = "None", email = "None", pictureUrl = "None" } = input;
 
     if (!email) {
@@ -120,7 +122,7 @@ export const createUser: bp.IntegrationProps['actions']['createUser'] = async ({
       name: 'userInfo',
       payload: {
         name: name,
-        email: email,
+        phoneNumber: email,
       },
     });
 

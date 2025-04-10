@@ -179,10 +179,27 @@ export class HubSpotApi {
   }
 
   /**
-   * Fetches email address of a HubSpot actor (user).
+ * Fetches a HubSpot contact's phone number by contactId.
+ * 
+ * @param {string} contactId - The ID of the contact.
+ * @returns {Promise<string>} The contact object's phone number.
+ */
+  public async getActorPhoneNumber(contactId: string): Promise<any> {
+    const endpoint = `${hubspot_api_base_url}/crm/v3/objects/contacts/${contactId}?properties=phone`;
+    const response = await this.makeHitlRequest(endpoint, "GET", null, { archived: false });
+
+    if (!response.success || !response.data) {
+      throw new Error(`Failed to fetch contact by ID: ${response.message}`);
+    }
+
+    return response.data.properties.phone;
+  }
+
+  /**
+   * Fetches email of a HubSpot actor (user).
    * 
    * @param {string} actorId - The actor ID.
-   * @returns {Promise<string>} The actor's email address.
+   * @returns {Promise<string>} The actor's email.
    */
   public async getActorEmail(actorId: string): Promise<any> {
     const endpoint = `${hubspot_api_base_url}/conversations/v3/conversations/actors/${actorId}`;
@@ -305,7 +322,7 @@ export class HubSpotApi {
    * @param {string} description - Message description (not used).
    * @returns {Promise<any>} The conversation response.
    */
-  public async createConversation(channelId: string, channelAccountId: string, integrationThreadId: string, name: string, email: string, title: string, description: string): Promise<any> {
+  public async createConversation(channelId: string, channelAccountId: string, integrationThreadId: string, name: string, phoneNumber: string, title: string, description: string): Promise<any> {
     const endpoint = `${hubspot_api_base_url}/conversations/v3/custom-channels/${channelId}/messages`;
     const payload = {
       text: `Name: ${name} \nTitle: ${title} \nDescription: ${description}`,
@@ -314,10 +331,10 @@ export class HubSpotApi {
       channelAccountId: channelAccountId,
       senders: [
         {
-          email: email,
+          phoneNumber: phoneNumber,
           deliveryIdentifier: {
-            type: "HS_EMAIL_ADDRESS",
-            value: email
+            type: "HS_PHONE_NUMBER",
+            value: phoneNumber
           }
         }
       ]
@@ -340,7 +357,7 @@ export class HubSpotApi {
    * @param {string} senderEmail - Sender's email.
    * @returns {Promise<any>} The message response.
    */
-  public async sendMessage(message: string, senderName: string, senderEmail: string): Promise<any> {
+  public async sendMessage(message: string, senderName: string, senderPhoneNumber: string): Promise<any> {
     const { state } = await this.bpClient.getState({
       id: this.ctx.integrationId,
       name: "channelInfo",
@@ -370,8 +387,8 @@ export class HubSpotApi {
         {
           name: senderName,
           deliveryIdentifier: {
-            type: "HS_EMAIL_ADDRESS",
-            value: senderEmail
+            type: "HS_PHONE_NUMBER",
+            value: senderPhoneNumber
           }
         }
       ]

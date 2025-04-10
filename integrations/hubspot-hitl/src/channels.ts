@@ -22,7 +22,7 @@ export const channels = {
           type: "integration",
         });
     
-        if (!userInfoState?.state.payload.email) {
+        if (!userInfoState?.state.payload.phoneNumber) {
           console.log("No userInfo found in state");
           return {
             success: false,
@@ -32,10 +32,10 @@ export const channels = {
           };; 
         }
 
-        const { name, email } = userInfoState.state.payload;
+        const { name, phoneNumber } = userInfoState.state.payload;
         
         return await hubSpotClient.sendMessage(
-          userMessage, name, email
+          userMessage, name, phoneNumber
         )
       },
     },

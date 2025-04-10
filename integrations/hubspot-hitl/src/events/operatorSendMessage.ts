@@ -18,11 +18,13 @@ export const handleOperatorReplied = async ({
   })
 
   let recipientActorId = hubspotEvent.message?.recipients?.[0]?.actorId
-  let recipientActorEmail = await hubSpotClient.getActorEmail(recipientActorId)
+  
+  // Stripping the "V-" prefix from the recipientActorId
+  let recipientActorPhoneNumber = await hubSpotClient.getActorPhoneNumber(recipientActorId.substring(2))
 
   const { user } = await client.getOrCreateUser({
     tags: {
-      id: recipientActorEmail,
+      id: recipientActorPhoneNumber,
     },
   })
 

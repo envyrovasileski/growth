@@ -8,6 +8,12 @@ HubSpot Sales Hub - Enterprise
 
 HubSpot Service Hub - Enterprise
 
+### Escalate to Human - Phone Number Requirement
+
+To successfully trigger HITL's **"Escalate to a Human"** card, you must pass a **valid phone number including the country code** into the **"User Email"** field.
+
+> ⚠️ This phone number **must match** the number of an existing contact in HubSpot. If there’s no match, the escalation will not work.
+
 ## How It Works
 
 ### Conversation Start
@@ -80,6 +86,7 @@ In your Botpress integration config, paste the following values:
   conversations.read
   conversations.visitor_identification.tokens.create
   conversations.write
+  crm.objects.contacts.read
   ```
 - Under **Webhooks**, set the **Target URL** to your Botpress webhook URL.
 
@@ -95,7 +102,7 @@ Create webhook subscriptions for the following events:
 ### 1. Get the Authorization Code
 Open the following URL in your browser (replace values accordingly):
 ```bash
-https://app.hubspot.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=conversations.custom_channels.read%20conversations.custom_channels.write%20conversations.read%20conversations.visitor_identification.tokens.create%20conversations.write&response_type=code
+https://app.hubspot.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=conversations.custom_channels.read%20conversations.custom_channels.write%20conversations.read%20conversations.visitor_identification.tokens.create%20conversations.write%20crm.objects.contacts.read&response_type=code
 ```
 
 ### 2. Exchange the Code for Tokens

@@ -19,7 +19,7 @@ export const states = {
   userInfo: {
     type: "integration",
     schema: z.object({
-      email: z.string(),
+      phoneNumber: z.string(),
       name: z.string(),
     }),
   },

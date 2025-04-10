@@ -12,7 +12,7 @@ export const handleOperatorAssignedUpdate = async ({
 }) => {
 
   let threadInfo = await hubSpotClient.getThreadInfo(hubspotEvent.objectId)
-  let recipientActorEmail = await hubSpotClient.getActorEmail("V-"+threadInfo.associatedContactId)
+  let recipientActorPhoneNumber = await hubSpotClient.getActorPhoneNumber(threadInfo.associatedContactId)
 
   const { conversation } = await client.getOrCreateConversation({
     channel: 'hitl',
@@ -23,7 +23,7 @@ export const handleOperatorAssignedUpdate = async ({
 
   const { user } = await client.getOrCreateUser({
     tags: {
-      id: recipientActorEmail,
+      id: recipientActorPhoneNumber,
     },
   })
 
