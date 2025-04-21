@@ -2,126 +2,227 @@ import { BotpressKB } from "./BotpressKB";
 import { SharepointClient } from "./SharepointClient";
 import path from "path";
 import { getFormatedCurrTime } from "./utils";
+import * as sdk from "@botpress/sdk";
 
 const SUPPORTED_FILE_EXTENSIONS = [".txt", ".html", ".pdf", ".doc", ".docx"];
 
 export class SharepointSync {
   private sharepointClient: SharepointClient;
-  private botpressKB: BotpressKB;
+  private defaultKbId?: string;
+  private bpClient: sdk.IntegrationSpecificClient<any>;
+  private logger: sdk.IntegrationLogger;
+  private kbInstances = new Map<string, BotpressKB>();
 
-  constructor(sharepointClient: SharepointClient, botpressKB: BotpressKB) {
+  constructor(
+    sharepointClient: SharepointClient,
+    defaultKbId: string | undefined,
+    bpClient: sdk.IntegrationSpecificClient<any>,
+    logger: sdk.IntegrationLogger
+  ) {
     this.sharepointClient = sharepointClient;
-    this.botpressKB = botpressKB;
+    this.defaultKbId = defaultKbId;
+    this.bpClient = bpClient;
+    this.logger = logger;
+
+    if (this.defaultKbId) {
+      this.kbInstances.set(
+        this.defaultKbId,
+        new BotpressKB(this.bpClient, this.defaultKbId, this.logger)
+      );
+    }
   }
 
-  private log(message: string): void {
-    console.log(`[${getFormatedCurrTime()} - SP Sync] ${message}`);
+  /* ─────────────────────────────────────────────── */
+  private log(msg: string) {
+    console.log(`[${getFormatedCurrTime()} - SP Sync] ${msg}`);
   }
 
-  /**
-   * Add all the items from the SharePoint list to the Botpress Knowledge Base
-   */
+  private getOrCreateKB(kbId: string): BotpressKB {
+    if (!this.kbInstances.has(kbId)) {
+      const kb = new BotpressKB(this.bpClient, kbId, this.logger);
+      this.kbInstances.set(kbId, kb);
+      this.log(`Created BotpressKB instance for KB ${kbId}`);
+    }
+    return this.kbInstances.get(kbId)!;
+  }
+
+  private getAllKbIds(): string[] {
+    const ids = new Set<string>()
+  
+    // 1) the default KB, if any
+    if (this.defaultKbId) {
+      ids.add(this.defaultKbId)
+    }
+  
+    // 2) every KB defined in your folder→KB map
+    //    (we cast to any so TS doesn’t complain about the private field)
+    // @ts-ignore
+    const map = (this.sharepointClient as any).folderKbMap as Record<string, string[]>
+    for (const kbId of Object.keys(map || {})) {
+      ids.add(kbId)
+    }
+  
+    return Array.from(ids)
+  }
+
+  async clearKBs(): Promise<void> {
+    
+  }
+
+  /* ───────────────────────────────────────────────
+   * Full initial load
+   * ─────────────────────────────────────────────── */
   async loadAllDocumentsIntoBotpressKB(): Promise<void> {
-    // Delete All existing files
-    await this.botpressKB.deleteAllFiles();
-
-    const documentLibraryListItems = await this.sharepointClient.listItems();
-
-    const processDocuments = documentLibraryListItems.map(async (document) => {
-      const documentName = await this.sharepointClient.getFileName(document.Id);
-      if (!documentName) {
-        this.log(`File does not exist for item: ${document.Id}`);
-        return;
+    // 1) Fetch all files in this doclib
+    const items = await this.sharepointClient.listItems()
+    const docs  = items.filter((i) => i.FileSystemObjectType === 0)
+  
+    // 2) Determine which KBs those files map to
+    const kbIdsToClear = new Set<string>()
+    for (const doc of docs) {
+      const spPathOrNull = await this.sharepointClient.getFileName(doc.Id)
+      if (!spPathOrNull) {
+        continue
       }
-      if (!SUPPORTED_FILE_EXTENSIONS.includes(path.extname(documentName))) {
-        this.log(`File extension not supported for file: ${documentName}`);
-        return;
+      // now TS knows spPath is string
+      const spPath = spPathOrNull
+  
+      // skip unsupported extensions early
+      if (!SUPPORTED_FILE_EXTENSIONS.includes(path.extname(spPath))) {
+        continue
       }
-      const content = await this.sharepointClient.downloadFile(documentName);
-      await this.botpressKB.addFile(document.ID.toString(), documentName, content);
-    });
-
-    await Promise.all(processDocuments);
+  
+      const relPath = decodeURIComponent(
+        spPath.replace(/^\/sites\/[^/]+\//, "")
+      )
+      const targetKbs = this.sharepointClient.getKbForPath(
+        relPath,
+        this.defaultKbId
+      )
+      for (const kb of targetKbs) {
+        kbIdsToClear.add(kb)
+      }
+    }
+  
+    // 3) Clear only those KBs
+    await Promise.all(
+      Array.from(kbIdsToClear).map((kbId) =>
+        this.getOrCreateKB(kbId).deleteAllFiles()
+      )
+    )
+  
+    // 4) Download & re‑add each file
+    await Promise.all(
+      docs.map(async (doc) => {
+        const spPathOrNull = await this.sharepointClient.getFileName(doc.Id)
+        if (!spPathOrNull) {
+          return
+        }
+        const spPath = spPathOrNull
+  
+        if (!SUPPORTED_FILE_EXTENSIONS.includes(path.extname(spPath))) {
+          return
+        }
+  
+        const relPath = decodeURIComponent(
+          spPath.replace(/^\/sites\/[^/]+\//, "")
+        )
+        const kbIds = this.sharepointClient.getKbForPath(
+          relPath,
+          this.defaultKbId
+        )
+        if (kbIds.length === 0) {
+          return
+        }
+  
+        const content = await this.sharepointClient.downloadFile(spPath)
+        await Promise.all(
+          kbIds.map((kbId) =>
+            this.getOrCreateKB(kbId).addFile(
+              doc.Id.toString(),
+              relPath,
+              content
+            )
+          )
+        )
+      })
+    )
   }
+ 
 
-  /**
-   * Processes changes from a SharePoint list
-   */
-  async syncSharepointDocumentLibraryAndBotpressKB(changeToken: string): Promise<string> {
-    const changes = await this.sharepointClient.getChanges(changeToken);
+  /* ───────────────────────────────────────────────
+   * Incremental change‑token sync
+   * ─────────────────────────────────────────────── */
+  async syncSharepointDocumentLibraryAndBotpressKB(oldToken: string): Promise<string> {
+    const changes = await this.sharepointClient.getChanges(oldToken);
+    if (changes.length === 0) return oldToken;
 
-    if (changes.length === 0) {
-      console.log("No changes to process");
-      return changeToken;
-    }
+    const newToken = changes.at(-1)!.ChangeToken.StringValue;
 
-    const newChangeToken = changes.at(-1)!.ChangeToken.StringValue;
+    for (const ch of changes) {
+      this.logger
+    .forBot()
+    .debug(
+      `[${getFormatedCurrTime()} - SP Sync] ChangeType=${ch.ChangeType} (${
+        ch.ChangeType ?? "Unknown"
+      })  ItemId=${ch.ItemId}`
+    );
 
-    // Process changes in series
-    for (const change of changes) {
-      switch (change.ChangeType) {
-        // ADD
+      switch (ch.ChangeType) {
+        /* 1 = Add */
         case 1: {
-          this.log(`Adding item: ${change.ItemId}`);
-          const fileName = await this.sharepointClient.getFileName(change.ItemId);
-          if (!fileName) {
-            this.log(`File does not exist for item: ${change.ItemId}`);
-            break;
+          const spPath = await this.sharepointClient.getFileName(ch.ItemId);
+          if (!spPath || !SUPPORTED_FILE_EXTENSIONS.includes(path.extname(spPath))) break;
+
+          const relPath = decodeURIComponent(spPath.replace(/^\/sites\/[^/]+\//, ""));
+          const kbIds   = this.sharepointClient.getKbForPath(relPath, this.defaultKbId);
+          if (kbIds.length === 0) break;
+
+          const content = await this.sharepointClient.downloadFile(spPath);
+          for (const kbId of kbIds) {
+            await this.getOrCreateKB(kbId).addFile(ch.ItemId.toString(), relPath, content);
           }
-          this.log(`File name: ${fileName}`);
-          const extension = path.extname(fileName);
-          if (!SUPPORTED_FILE_EXTENSIONS.includes(extension)) {
-            this.log(`File extension not supported for file: ${fileName}`);
-            break;
-          }
-          const content = await this.sharepointClient.downloadFile(fileName);
-          await this.botpressKB.addFile(change.ItemId.toString(), fileName, content);
           break;
         }
-        // Update
+
+        /* 2 = Update */
         case 2: {
-          this.log(`Updating item: ${change.ItemId}`);
-          const updatedFileName = await this.sharepointClient.getFileName(change.ItemId);
-          if (!updatedFileName) {
-            this.log(`File does not exist for item: ${change.ItemId}`);
-            break;
+          const spPath = await this.sharepointClient.getFileName(ch.ItemId);
+          if (!spPath) break;
+
+          const relPath = decodeURIComponent(spPath.replace(/^\/sites\/[^/]+\//, ""));
+          const kbIds   = this.sharepointClient.getKbForPath(relPath, this.defaultKbId);
+          if (kbIds.length === 0) break;
+
+          const content = await this.sharepointClient.downloadFile(spPath);
+          for (const kbId of kbIds) {
+            await this.getOrCreateKB(kbId).updateFile(ch.ItemId.toString(), relPath, content);
           }
-          this.log(`Updated file name: ${updatedFileName}`);
-          const updatedContent = await this.sharepointClient.downloadFile(updatedFileName);
-          // Delete the existing file and add the updated file
-          await this.botpressKB.deleteFile(change.ItemId.toString());
-          await this.botpressKB.addFile(change.ItemId.toString(), updatedFileName, updatedContent);
           break;
         }
-        // Delete
+
+        /* 3 = Delete */
         case 3: {
-          this.log(`Deleting item: ${change.ItemId}`);
-          await this.botpressKB.deleteFile(change.ItemId.toString());
-          break;
-        }
-        // Rename
-        case 4: {
-          this.log(`Renaming item: ${change.ItemId}`);
-          const renamedFileName = await this.sharepointClient.getFileName(change.ItemId);
-          if (!renamedFileName) {
-            this.log(`File does not exist for item: ${change.ItemId}`);
+          const fileId = ch.ItemId.toString();
+          const res = await this.bpClient.listFiles({ tags: { spId: fileId } });
+
+          if (res.files.length === 0) {
+            this.logger.forBot().debug(`[SP Sync] spId=${fileId} not found in any KB`);
             break;
           }
-          this.log(`Renamed file name: ${renamedFileName}`);
-          const content = await this.sharepointClient.downloadFile(renamedFileName);
-          // Delete the existing file and add the updated file
-          await this.botpressKB.deleteFile(change.ItemId.toString());
-          await this.botpressKB.addFile(change.ItemId.toString(), renamedFileName, content);
-          break;
-        }
-        default: {
-          this.log(`Change type not supported (yet): ${change.ChangeType}`);
+
+          // Delete every hit (usually one)
+          await Promise.all(res.files.map(f => this.bpClient.deleteFile({ id: f.id })));
+
+          // Optional: log where it was
+          res.files.forEach(f =>
+            this.logger.forBot().info(`[BP KB] Delete → ${f.key}  (spId=${fileId})`)
+          );
           break;
         }
       }
-      this.log(`Processed change type ${change.ChangeType} for item: ${change.ItemId}`);
     }
 
-    return newChangeToken;
+    return newToken;
   }
 }

@@ -14,6 +14,9 @@ export class SharepointClient {
   private siteName: string;
   private documentLibraryName: string;
 
+  // NEW: For the optional folder→KB mapping, parse from config
+  private folderKbMap: Record<string, string[]> = {};
+
   constructor(integrationConfiguration: bp.configuration.Configuration) {
     this.cca = new msal.ConfidentialClientApplication({
       auth: {
@@ -28,12 +31,66 @@ export class SharepointClient {
 
     this.primaryDomain = integrationConfiguration.primaryDomain;
     this.siteName = integrationConfiguration.siteName;
-    this.documentLibraryName = integrationConfiguration.documentLibraryName;
+    const lib = integrationConfiguration.documentLibraryName;
+    if (!lib) {
+      throw new Error(
+        "[SharepointClient] documentLibraryName is required " +
+        "(the calling code should inject one per library)"
+      );
+    }
+    this.documentLibraryName = lib;  
+
+    // Attempt to parse folderKbMap from the JSON string
+    try {
+      if (integrationConfiguration.folderKbMap) {
+        this.folderKbMap = JSON.parse(integrationConfiguration.folderKbMap);
+      }
+    } catch (err) {
+      console.warn("[SharepointClient] Failed parsing folderKbMap:", err);
+      this.folderKbMap = {};
+    }
   }
 
   /**
-   * A method to fetch a token from Azure AD
-   * @returns - The token
+ * Return all KB IDs whose prefixes match the relative path,
+ * ordered longest‑to‑shortest, so callers can:
+ *   • use kbIds[0] for exclusive routing  OR
+ *   • iterate them all for duplicate routing
+ */
+public getKbForPath(fileRelPath: string, defaultKb?: string): string[] {
+  const rel = fileRelPath.toLowerCase();
+  const hits: { kbId: string; len: number }[] = [];
+
+  for (const [kbId, folderList] of Object.entries(this.folderKbMap)) {
+    for (const raw of folderList) {
+      const f = raw.toLowerCase();
+
+      // Root of the document‑library
+      if (f === "" && !rel.includes("/")) {
+        hits.push({ kbId, len: 0 });
+        continue;
+      }
+
+      // Exact match or prefix match
+      if (rel === f || rel.startsWith(f + "/")) {
+        hits.push({ kbId, len: f.length });
+      }
+    }
+  }
+
+  if (hits.length === 0 && defaultKb) {
+    return [defaultKb];           // fallback
+  }
+
+  // Sort longest → shortest so index 0 is the most specific KB
+  return hits.sort((a, b) => b.len - a.len).map((h) => h.kbId);
+}
+
+  
+  
+
+  /**
+   * Fetch an OAuth token from Azure AD
    */
   private async fetchToken(): Promise<msal.AuthenticationResult> {
     try {
@@ -41,7 +98,6 @@ export class SharepointClient {
         scopes: [`https://${this.primaryDomain}.sharepoint.com/.default`],
       };
       const token = await this.cca.acquireTokenByClientCredential(tokenRequest);
-
       if (token === null) {
         throw new sdk.RuntimeError(`Error acquiring sp OAuth token`);
       }
@@ -52,8 +108,7 @@ export class SharepointClient {
   }
 
   /**
-   * A method to return the list ID of the document library
-   * @returns - The list ID
+   * Return the list ID of the document library
    */
   private async getDocumentLibraryListId(): Promise<string> {
     const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/lists/getbytitle('${this.documentLibraryName}')?$select=Title,Id`;
@@ -75,7 +130,7 @@ export class SharepointClient {
   }
 
   /**
-   * Initializes the change token
+   * Get the latest ChangeToken from the doc library
    */
   async getLatestChangeToken(): Promise<string | null> {
     const changes = await this.getChanges(null);
@@ -86,10 +141,11 @@ export class SharepointClient {
   }
 
   /**
-   * A method to download a file from SharePoint
-   * @param fileName - The name of the file to download
+   * Downloads a file from SharePoint
+   * @param relativePath - The path to the file
    * @returns - The file content as an ArrayBuffer
    */
+
   async downloadFile(fileName: string): Promise<ArrayBuffer> {
     const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/GetFolderByServerRelativeUrl('${this.documentLibraryName}')/Files('${fileName}')/$value`;
 
@@ -105,14 +161,99 @@ export class SharepointClient {
     const arrayBuffer = await response.arrayBuffer();
     return arrayBuffer;
   }
+  
+  
 
   /**
-   * Registers a webhook for the configured document library.
-   * @param webhookurl - The URL to register the webhook to.
-   * @returns - The webhook ID
+   * Returns the *full server-relative path*, e.g. "/sites/envy/doclib1/folder1/doc4.docx",
+   * for the given list item. If none found, returns null.
+   */
+  async getFileName(listItemIndex: number): Promise<string | null> {
+    const url =
+      `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}` +
+      `/_api/web/lists/getbytitle('${this.documentLibraryName}')/items(${listItemIndex})` +
+      `/File?$select=Name,ServerRelativeUrl`;
+
+    const token = await this.fetchToken();
+
+    const res = await axios
+      .get(url, {
+        headers: {
+          Authorization: `Bearer ${token.accessToken}`,
+          Accept: "application/json;odata=verbose",
+        },
+      })
+      .catch(() => ({ data: { d: { Name: null, ServerRelativeUrl: null } } }));
+
+    const { Name, ServerRelativeUrl } = res.data.d;
+    if (!Name || !ServerRelativeUrl) {
+      return null;
+    }
+
+    // Return the full path ("/sites/envy/doclib1/folder/doc4.docx")
+    return ServerRelativeUrl;
+  }
+
+  /**
+   * Get changes from the doc library since a specific change token
+   */
+  async getChanges(changeToken: string | null): Promise<ChangeItem[]> {
+    const token = await this.fetchToken();
+    const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/lists/getbytitle('${this.documentLibraryName}')/GetChanges`;
+
+    type GetChangesPayload = {
+      query: {
+        Item: boolean;
+        Add: boolean;
+        Update: boolean;
+        DeleteObject: boolean;
+        Move: boolean;
+        Restore: boolean;
+        ChangeTokenStart?: {
+          StringValue: string;
+        };
+      };
+    };
+
+    const payload: GetChangesPayload = {
+      query: {
+        Item: true,
+        Add: true,
+        Update: true,
+        DeleteObject: true,
+        Move: true,
+        Restore: true
+      },
+    };
+
+    if (changeToken !== null) {
+      payload.query.ChangeTokenStart = {
+        StringValue: changeToken,
+      };
+    }
+
+    const res = await axios
+      .post<ChangeResponse>(url, payload, {
+        headers: {
+          Authorization: `Bearer ${token.accessToken}`,
+          Accept: "application/json;odata=verbose",
+        },
+      })
+      .catch(handleAxiosError);
+
+    if (!res) {
+      throw new sdk.RuntimeError(`Error getting changes`);
+    }
+
+    // console.log(res)
+
+    return res.data.d.results;
+  }
+
+  /**
+   * Register a webhook on the doc library
    */
   async registerWebhook(webhookurl: string): Promise<string> {
-    // Add Webhook
     const listId = await this.getDocumentLibraryListId();
     const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/lists('${listId}')/subscriptions`;
     const token = await this.fetchToken();
@@ -138,14 +279,11 @@ export class SharepointClient {
       throw new sdk.RuntimeError(`Error registering webhook`);
     }
 
-    const webhookId = res.data.d.id;
-
-    return webhookId;
+    return res.data.d.id;
   }
 
   /**
-   * Unregisters a webhook for the configured document library.
-   * @param webhookId - The ID of the webhook to unregister.
+   * Unregister a webhook
    */
   async unregisterWebhook(webhookId: string): Promise<void> {
     const listId = this.getDocumentLibraryListId();
@@ -162,8 +300,7 @@ export class SharepointClient {
   }
 
   /**
-   * Get the list of documents from the configured document library.
-   * @returns - The list of documents.
+   * List all items (files + folders) in the doc library
    */
   async listItems(): Promise<SharePointItem[]> {
     const token = await this.fetchToken();
@@ -174,85 +311,6 @@ export class SharepointClient {
         Accept: "application/json;odata=verbose",
       },
     });
-    return res.data.d.results;
-  }
-
-  /**
-   * Get the file name from the SharePoint list item
-   * @param listItemIndex - The item index to get the file name for
-   * @returns - The file name or null if the file does not exist
-   */
-  async getFileName(listItemIndex: number): Promise<string | null> {
-    // sample url -https://botpressio836.sharepoint.com/sites/DemoStandardTeamPage/_api/web/lists/getbytitle('NewDL')/items(3)/File
-    const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/lists/getbytitle('${this.documentLibraryName}')/items(${listItemIndex})/File`;
-    const token = await this.fetchToken();
-    const res = await axios
-      .get(url, {
-        headers: {
-          Authorization: `Bearer ${token.accessToken}`,
-          Accept: "application/json;odata=verbose",
-        },
-      })
-      .catch(() => {
-        return {
-          data: {
-            d: {
-              Name: null,
-            },
-          },
-        };
-      });
-    return res.data.d.Name;
-  }
-
-  /**
-   * A method to get changes from a SharePoint list
-   * @returns - The list of changes
-   */
-  async getChanges(changeToken: string | null): Promise<ChangeItem[]> {
-    const token = await this.fetchToken();
-    const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/lists/getbytitle('${this.documentLibraryName}')/GetChanges`;
-
-    type GetChangesPayload = {
-      query: {
-        Item: boolean;
-        Add: boolean;
-        Update: boolean;
-        DeleteObject: boolean;
-        ChangeTokenStart?: {
-          StringValue: string;
-        };
-      };
-    };
-
-    const payload: GetChangesPayload = {
-      query: {
-        Item: true,
-        Add: true,
-        Update: true,
-        DeleteObject: true,
-      },
-    };
-
-    if (changeToken !== null) {
-      payload.query.ChangeTokenStart = {
-        StringValue: changeToken,
-      };
-    }
-
-    const res = await axios
-      .post<ChangeResponse>(url, payload, {
-        headers: {
-          Authorization: `Bearer ${token.accessToken}`,
-          Accept: "application/json;odata=verbose",
-        },
-      })
-      .catch(handleAxiosError);
-
-    if (!res) {
-      throw new sdk.RuntimeError(`Error getting changes`);
-    }
-
     return res.data.d.results;
   }
 }

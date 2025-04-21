@@ -3,34 +3,78 @@ import { integrationName } from "./package.json";
 
 export default new IntegrationDefinition({
   name: integrationName,
-  version: "0.0.1",
-  title: "Sharepoint",
-  description: "Sync a Botpress knowledge base with a Sharepoint document library.",
+  version: "2.2.0",
+  title: "SharePoint",
+  description:
+    "Sync one or many SharePoint document libraries with one or more Botpress knowledge bases.",
   readme: "hub.md",
   icon: "icon.svg",
+
+  /******************************************************************
+   * CONFIGURATION (user‑visible)
+   ******************************************************************/
   configuration: {
     schema: z.object({
-      clientId: z.string().min(1).describe("The client ID"),
-      tenantId: z.string().min(1).describe("The tenant ID"),
-      thumbprint: z.string().min(1).describe("The thumbprint"),
-      privateKey: z.string().min(1).describe("The private key"),
-      primaryDomain: z.string().min(1).describe("The primary domain"),
-      siteName: z.string().min(1).describe("The name of the Sharepoint site."),
+      clientId: z.string().min(1).describe("Azure AD application client ID"),
+      tenantId: z.string().min(1).describe("Azure AD tenant ID"),
+      thumbprint: z.string().min(1).describe("Certificate thumbprint"),
+      privateKey: z.string().min(1).describe("PEM‑formatted certificate private key"),
+      primaryDomain: z.string().min(1).describe("SharePoint primary domain (e.g. contoso)"),
+      siteName: z.string().min(1).describe("SharePoint site name"),
+
+      /* ──────────────────────────────────────────────────────────
+       * NEW  ▸ MULTI‑LIBRARY SUPPORT
+       * ────────────────────────────────────────────────────────── */
+      documentLibraryNames: z
+        .string()
+        .optional()
+        .describe(
+          "Comma‑separated list **or** JSON array of Document Libraries to sync " +
+            '(e.g. "Policies,Procedures" or \'["Policies","Procedures"]\').'
+        ),
+
+      /* Backwards‑compat: keep the old single‑value key optional */
       documentLibraryName: z
         .string()
-        .min(1)
-        .describe("The name of the Document Library that you wan to sync a Botpress knowledge base with."),
-      kbId: z.string().min(1).describe("The knowledge base ID to sync with"),
+        .optional()
+        .describe("(Legacy) Single document library to sync"),
+
+      /* KB routing */
+      kbId: z.string().optional().describe(
+                "Optional default KB. " +
+                "If omitted, every file must match a folderKbMap entry or it’s ignored."
+              ),
+
+      folderKbMap: z
+        .string()
+        .optional()
+        .describe(
+          "Optional JSON map of kbId → array of folder prefixes used for routing.\n" +
+            'Example: {"kb‑marketing":["Campaigns"],"kb‑policies":["HR","Legal"]}'
+        ),
     }),
   },
+
+  /******************************************************************
+   * STATE (stored per installation)
+   ******************************************************************/
   states: {
     configuration: {
       type: "integration",
       schema: z.object({
-        webhookSubscriptionId: z.string().min(1),
-        changeToken: z.string().min(1),
+        /* key = documentLibraryName, value = {webhookSubscriptionId,changeToken} */
+        subscriptions: z.record(
+          z.object({
+            webhookSubscriptionId: z.string().min(1),
+            changeToken: z.string().min(1),
+          })
+        ),
       }),
     },
   },
+
+  /******************************************************************
+   * NO UI‑ACTIONS
+   ******************************************************************/
   actions: {},
 });
