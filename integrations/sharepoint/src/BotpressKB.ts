@@ -34,9 +34,6 @@ export class BotpressKB {
     return `${this.kbId}/${filename}`;   // e.g.  kb‑xxx/doclib1/…/file.docx
   }
 
-  /* --------------------------------------------------
-   * ADD
-   * -------------------------------------------------- */
   async addFile(spId: string, filename: string, content: ArrayBuffer): Promise<void> {
     this.log(`Add → ${filename}`);
 
@@ -53,9 +50,6 @@ export class BotpressKB {
     });
   }
 
-  /* --------------------------------------------------
-   * UPDATE
-   * -------------------------------------------------- */
   async updateFile(spId: string, filename: string, content: ArrayBuffer): Promise<void> {
     this.log(`Update → ${filename}`);
 
@@ -66,14 +60,11 @@ export class BotpressKB {
     await this.addFile(spId, filename, content);
   }
 
-  /* --------------------------------------------------
-   * DELETE
-   * -------------------------------------------------- */
   async deleteFile(spId: string): Promise<void> {
     const existing = await this.findFileBySpId(spId);
   
     if (!existing) {
-      this.log(`Delete skipped – no file with spId=${spId} in KB ${this.kbId}`);
+      this.log(`Delete skipped - no file with spId=${spId} in KB ${this.kbId}`);
       return;
     }
   
@@ -81,9 +72,6 @@ export class BotpressKB {
     await this.bpClient.deleteFile({ id: existing.id });
   }
 
-  /* --------------------------------------------------
-   * DELETE ALL
-   * -------------------------------------------------- */
   async deleteAllFiles(): Promise<void> {
     this.log(`Delete ALL files in KB ${this.kbId}`);
     const res = await this.bpClient.listFiles({ tags: { kbId: this.kbId } });
