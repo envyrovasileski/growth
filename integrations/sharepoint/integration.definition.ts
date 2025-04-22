@@ -32,19 +32,6 @@ export default new IntegrationDefinition({
           "Comma‑separated list **or** JSON array of Document Libraries to sync " +
             '(e.g. "Policies,Procedures" or \'["Policies","Procedures"]\').'
         ),
-
-      /* Backwards‑compat: keep the old single‑value key optional */
-      documentLibraryName: z
-        .string()
-        .optional()
-        .describe("(Legacy) Single document library to sync"),
-
-      /* KB routing */
-      kbId: z.string().optional().describe(
-                "Optional default KB. " +
-                "If omitted, every file must match a folderKbMap entry or it’s ignored."
-              ),
-
       folderKbMap: z
         .string()
         .optional()

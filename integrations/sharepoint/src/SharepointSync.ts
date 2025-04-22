@@ -8,28 +8,18 @@ const SUPPORTED_FILE_EXTENSIONS = [".txt", ".html", ".pdf", ".doc", ".docx"];
 
 export class SharepointSync {
   private sharepointClient: SharepointClient;
-  private defaultKbId?: string;
   private bpClient: sdk.IntegrationSpecificClient<any>;
   private logger: sdk.IntegrationLogger;
   private kbInstances = new Map<string, BotpressKB>();
 
   constructor(
     sharepointClient: SharepointClient,
-    defaultKbId: string | undefined,
     bpClient: sdk.IntegrationSpecificClient<any>,
     logger: sdk.IntegrationLogger
   ) {
     this.sharepointClient = sharepointClient;
-    this.defaultKbId = defaultKbId;
     this.bpClient = bpClient;
-    this.logger = logger;
-
-    if (this.defaultKbId) {
-      this.kbInstances.set(
-        this.defaultKbId,
-        new BotpressKB(this.bpClient, this.defaultKbId, this.logger)
-      );
-    }
+    this.logger = logger;  
   }
 
   /* ─────────────────────────────────────────────── */
@@ -48,11 +38,6 @@ export class SharepointSync {
 
   private getAllKbIds(): string[] {
     const ids = new Set<string>()
-  
-    // 1) the default KB, if any
-    if (this.defaultKbId) {
-      ids.add(this.defaultKbId)
-    }
   
     // 2) every KB defined in your folder→KB map
     //    (we cast to any so TS doesn’t complain about the private field)
@@ -95,10 +80,7 @@ export class SharepointSync {
       const relPath = decodeURIComponent(
         spPath.replace(/^\/sites\/[^/]+\//, "")
       )
-      const targetKbs = this.sharepointClient.getKbForPath(
-        relPath,
-        this.defaultKbId
-      )
+      const targetKbs = this.sharepointClient.getKbForPath(relPath)
       for (const kb of targetKbs) {
         kbIdsToClear.add(kb)
       }
@@ -127,10 +109,7 @@ export class SharepointSync {
         const relPath = decodeURIComponent(
           spPath.replace(/^\/sites\/[^/]+\//, "")
         )
-        const kbIds = this.sharepointClient.getKbForPath(
-          relPath,
-          this.defaultKbId
-        )
+        const kbIds = this.sharepointClient.getKbForPath(relPath)
         if (kbIds.length === 0) {
           return
         }
@@ -175,7 +154,7 @@ export class SharepointSync {
           if (!spPath || !SUPPORTED_FILE_EXTENSIONS.includes(path.extname(spPath))) break;
 
           const relPath = decodeURIComponent(spPath.replace(/^\/sites\/[^/]+\//, ""));
-          const kbIds   = this.sharepointClient.getKbForPath(relPath, this.defaultKbId);
+          const kbIds   = this.sharepointClient.getKbForPath(relPath);
           if (kbIds.length === 0) break;
 
           const content = await this.sharepointClient.downloadFile(spPath);
@@ -191,7 +170,7 @@ export class SharepointSync {
           if (!spPath) break;
 
           const relPath = decodeURIComponent(spPath.replace(/^\/sites\/[^/]+\//, ""));
-          const kbIds   = this.sharepointClient.getKbForPath(relPath, this.defaultKbId);
+          const kbIds   = this.sharepointClient.getKbForPath(relPath);
           if (kbIds.length === 0) break;
 
           const content = await this.sharepointClient.downloadFile(spPath);

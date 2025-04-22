@@ -11,14 +11,12 @@ import { SharepointSync } from "./SharepointSync";
  * Helper ▸ normalise library list from configuration
  * ────────────────────────────────────────────────────────── */
 const getLibraryNames = (cfg: any): string[] => {
-  if (cfg.documentLibraryNames) {
     try {
       return JSON.parse(cfg.documentLibraryNames);
     } catch {
       return cfg.documentLibraryNames.split(",").map((s: string) => s.trim()).filter(Boolean);
     }
-  }
-  return [cfg.documentLibraryName];
+  
 };
 
 export default new bp.Integration({
@@ -30,8 +28,8 @@ export default new bp.Integration({
     const subscriptions: Record<string, { webhookSubscriptionId: string; changeToken: string }> = {};
 
     for (const lib of libs) {
-      const spClient = new SharepointClient({ ...ctx.configuration, documentLibraryName: lib });
-      const spSync = new SharepointSync(spClient, ctx.configuration.kbId, client, logger);
+      const spClient = new SharepointClient({ ...ctx.configuration}, lib);
+      const spSync = new SharepointSync(spClient, client, logger);
 
       logger.forBot().info(`[Registration] (${lib}) Creating webhook → ${webhookUrl}`);
       const webhookSubscriptionId = await spClient.registerWebhook(webhookUrl);
@@ -68,7 +66,7 @@ export default new bp.Integration({
       state.payload.subscriptions as Record<string, any>
     )) {
       logger.forBot().info(`[Unregister] (${lib}) Deleting webhook ${webhookSubscriptionId}`);
-      const spClient = new SharepointClient({ ...ctx.configuration, documentLibraryName: lib });
+      const spClient = new SharepointClient({ ...ctx.configuration}, lib);
       await spClient.unregisterWebhook(webhookSubscriptionId);
     }
   },
@@ -102,8 +100,8 @@ export default new bp.Integration({
 
     /* 2 ▸ Iterate through each library, perform incremental sync */
     for (const [lib, { changeToken }] of Object.entries(oldSubs)) {
-      const spClient = new SharepointClient({ ...ctx.configuration, documentLibraryName: lib });
-      const spSync = new SharepointSync(spClient, ctx.configuration.kbId, client, logger);
+      const spClient = new SharepointClient({ ...ctx.configuration}, lib);
+      const spSync = new SharepointSync(spClient, client, logger);
 
       logger.forBot().info(`[Webhook] (${lib}) Running incremental sync…`);
       const newToken = await spSync.syncSharepointDocumentLibraryAndBotpressKB(changeToken);

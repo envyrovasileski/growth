@@ -17,7 +17,7 @@ export class SharepointClient {
   // NEW: For the optional folder→KB mapping, parse from config
   private folderKbMap: Record<string, string[]> = {};
 
-  constructor(integrationConfiguration: bp.configuration.Configuration) {
+  constructor(integrationConfiguration: bp.configuration.Configuration, documentLibraryName: string) {
     this.cca = new msal.ConfidentialClientApplication({
       auth: {
         clientId: integrationConfiguration.clientId,
@@ -31,7 +31,7 @@ export class SharepointClient {
 
     this.primaryDomain = integrationConfiguration.primaryDomain;
     this.siteName = integrationConfiguration.siteName;
-    const lib = integrationConfiguration.documentLibraryName;
+    const lib = documentLibraryName;
     if (!lib) {
       throw new Error(
         "[SharepointClient] documentLibraryName is required " +
@@ -57,7 +57,7 @@ export class SharepointClient {
  *   • use kbIds[0] for exclusive routing  OR
  *   • iterate them all for duplicate routing
  */
-public getKbForPath(fileRelPath: string, defaultKb?: string): string[] {
+public getKbForPath(fileRelPath: string): string[] {
   const rel = fileRelPath.toLowerCase();
   const hits: { kbId: string; len: number }[] = [];
 
@@ -76,10 +76,6 @@ public getKbForPath(fileRelPath: string, defaultKb?: string): string[] {
         hits.push({ kbId, len: f.length });
       }
     }
-  }
-
-  if (hits.length === 0 && defaultKb) {
-    return [defaultKb];           // fallback
   }
 
   // Sort longest → shortest so index 0 is the most specific KB

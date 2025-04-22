@@ -12,11 +12,14 @@ export class BotpressKB {
     logger: sdk.IntegrationLogger
   ) {
     this.bpClient = bpClient;
-    this.kbId     = kbId;
+    this.kbId = kbId;
     this.logger   = logger;
   }
 
-  /* -------------------------------------------------- */
+  public setKbId(kbId: string) {
+    this.kbId = kbId;
+  }
+
   private log(msg: string) {
     this.logger.forBot().info(`[${getFormatedCurrTime()} - BP KB] ${msg}`);
   }
