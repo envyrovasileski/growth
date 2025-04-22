@@ -22,7 +22,6 @@ export class SharepointSync {
     this.logger = logger;  
   }
 
-  /* ─────────────────────────────────────────────── */
   private log(msg: string) {
     console.log(`[${getFormatedCurrTime()} - SP Sync] ${msg}`);
   }
@@ -36,33 +35,12 @@ export class SharepointSync {
     return this.kbInstances.get(kbId)!;
   }
 
-  private getAllKbIds(): string[] {
-    const ids = new Set<string>()
-  
-    // 2) every KB defined in your folder→KB map
-    //    (we cast to any so TS doesn’t complain about the private field)
-    // @ts-ignore
-    const map = (this.sharepointClient as any).folderKbMap as Record<string, string[]>
-    for (const kbId of Object.keys(map || {})) {
-      ids.add(kbId)
-    }
-  
-    return Array.from(ids)
-  }
-
-  async clearKBs(): Promise<void> {
-    
-  }
-
-  /* ───────────────────────────────────────────────
-   * Full initial load
-   * ─────────────────────────────────────────────── */
   async loadAllDocumentsIntoBotpressKB(): Promise<void> {
-    // 1) Fetch all files in this doclib
+    // 1 - Fetch all files in this doclib
     const items = await this.sharepointClient.listItems()
     const docs  = items.filter((i) => i.FileSystemObjectType === 0)
   
-    // 2) Determine which KBs those files map to
+    // 2 - Determine which KBs those files map to
     const kbIdsToClear = new Set<string>()
     for (const doc of docs) {
       const spPathOrNull = await this.sharepointClient.getFileName(doc.Id)
@@ -86,14 +64,14 @@ export class SharepointSync {
       }
     }
   
-    // 3) Clear only those KBs
+    // 3 - Clear only those KBs
     await Promise.all(
       Array.from(kbIdsToClear).map((kbId) =>
         this.getOrCreateKB(kbId).deleteAllFiles()
       )
     )
   
-    // 4) Download & re‑add each file
+    // 4 - Download & re‑add each file
     await Promise.all(
       docs.map(async (doc) => {
         const spPathOrNull = await this.sharepointClient.getFileName(doc.Id)
@@ -109,6 +87,7 @@ export class SharepointSync {
         const relPath = decodeURIComponent(
           spPath.replace(/^\/sites\/[^/]+\//, "")
         )
+
         const kbIds = this.sharepointClient.getKbForPath(relPath)
         if (kbIds.length === 0) {
           return
@@ -127,11 +106,7 @@ export class SharepointSync {
       })
     )
   }
- 
 
-  /* ───────────────────────────────────────────────
-   * Incremental change‑token sync
-   * ─────────────────────────────────────────────── */
   async syncSharepointDocumentLibraryAndBotpressKB(oldToken: string): Promise<string> {
     const changes = await this.sharepointClient.getChanges(oldToken);
     if (changes.length === 0) return oldToken;
@@ -139,13 +114,12 @@ export class SharepointSync {
     const newToken = changes.at(-1)!.ChangeToken.StringValue;
 
     for (const ch of changes) {
-      this.logger
-    .forBot()
-    .debug(
-      `[${getFormatedCurrTime()} - SP Sync] ChangeType=${ch.ChangeType} (${
-        ch.ChangeType ?? "Unknown"
-      })  ItemId=${ch.ItemId}`
-    );
+      this.logger.forBot()
+        .debug(
+          `[${getFormatedCurrTime()} - SP Sync] ChangeType=${ch.ChangeType} (${
+            ch.ChangeType ?? "Unknown"
+          })  ItemId=${ch.ItemId}`
+        );
 
       switch (ch.ChangeType) {
         /* 1 = Add */
