@@ -1,28 +1,18 @@
-/******************************************************************
- *  SharePoint ⇆ Botpress integration (multi‑library edition)
- ******************************************************************/
 import * as sdk from "@botpress/sdk";
 import * as bp from ".botpress";
 
 import { SharepointClient } from "./SharepointClient";
 import { SharepointSync } from "./SharepointSync";
 
-/* ──────────────────────────────────────────────────────────
- * Helper ▸ normalise library list from configuration
- * ────────────────────────────────────────────────────────── */
 const getLibraryNames = (cfg: any): string[] => {
     try {
       return JSON.parse(cfg.documentLibraryNames);
     } catch {
       return cfg.documentLibraryNames.split(",").map((s: string) => s.trim()).filter(Boolean);
     }
-  
 };
 
 export default new bp.Integration({
-  /******************************************************************
-   * REGISTER – create one webhook & run one full sync per library
-   ******************************************************************/
   register: async ({ ctx, webhookUrl, client, logger }) => {
     const libs = getLibraryNames(ctx.configuration);
     const subscriptions: Record<string, { webhookSubscriptionId: string; changeToken: string }> = {};
@@ -41,6 +31,7 @@ export default new bp.Integration({
       if (!changeToken) {
         throw new sdk.RuntimeError(`(${lib}) Cannot obtain initial change token`);
       }
+
       subscriptions[lib] = { webhookSubscriptionId, changeToken };
     }
 
@@ -52,9 +43,6 @@ export default new bp.Integration({
     });
   },
 
-  /******************************************************************
-   * UNREGISTER – remove every webhook we created
-   ******************************************************************/
   unregister: async ({ client, ctx, logger }) => {
     const { state } = await client.getState({
       type: "integration",
@@ -73,17 +61,14 @@ export default new bp.Integration({
 
   actions: {},
 
-  /******************************************************************
-   * WEBHOOK HANDLER – called by every library’s webhook
-   ******************************************************************/
   handler: async ({ ctx, req, client, logger }) => {
-    /* 0 ▸ Validation ping from SharePoint */
+    /* 0 - Validation ping from SharePoint */
     if (req.query.includes("validationtoken")) {
       const token = req.query.split("=")[1];
       return { status: 200, body: token };
     }
 
-    /* 1 ▸ Load per‑library state */
+    /* 1 - Load per‑library state */
     const {
       state: { payload },
     } = await client.getState({
@@ -98,7 +83,7 @@ export default new bp.Integration({
     >;
     const newSubs = { ...oldSubs };
 
-    /* 2 ▸ Iterate through each library, perform incremental sync */
+    /* 2 - Iterate through each library, perform incremental sync */
     for (const [lib, { changeToken }] of Object.entries(oldSubs)) {
       const spClient = new SharepointClient({ ...ctx.configuration}, lib);
       const spSync = new SharepointSync(spClient, client, logger);
@@ -108,7 +93,7 @@ export default new bp.Integration({
       newSubs[lib]!.changeToken = newToken; // non‑null assertion OK – lib is guaranteed
     }
 
-    /* 3 ▸ Persist updated change tokens */
+    /* 3 - Persist updated change tokens */
     await client.setState({
       type: "integration",
       name: "configuration",
