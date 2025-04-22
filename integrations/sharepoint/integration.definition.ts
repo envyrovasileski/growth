@@ -3,33 +3,27 @@ import { integrationName } from "./package.json";
 
 export default new IntegrationDefinition({
   name: integrationName,
-  version: "2.2.0",
+  version: "3.0.0",
   title: "SharePoint",
   description:
-    "Sync one or many SharePoint document libraries with one or more Botpress knowledge bases.",
+    "Sync one or many SharePoint document libraries with one or more Botpress knowledge bases.",
   readme: "hub.md",
   icon: "icon.svg",
 
-  /******************************************************************
-   * CONFIGURATION (user‑visible)
-   ******************************************************************/
   configuration: {
     schema: z.object({
       clientId: z.string().min(1).describe("Azure AD application client ID"),
       tenantId: z.string().min(1).describe("Azure AD tenant ID"),
       thumbprint: z.string().min(1).describe("Certificate thumbprint"),
-      privateKey: z.string().min(1).describe("PEM‑formatted certificate private key"),
+      privateKey: z.string().min(1).describe("PEM-formatted certificate private key"),
       primaryDomain: z.string().min(1).describe("SharePoint primary domain (e.g. contoso)"),
       siteName: z.string().min(1).describe("SharePoint site name"),
 
-      /* ──────────────────────────────────────────────────────────
-       * NEW  ▸ MULTI‑LIBRARY SUPPORT
-       * ────────────────────────────────────────────────────────── */
       documentLibraryNames: z
         .string()
         .optional()
         .describe(
-          "Comma‑separated list **or** JSON array of Document Libraries to sync " +
+          "Comma-separated list **or** JSON array of Document Libraries to sync " +
             '(e.g. "Policies,Procedures" or \'["Policies","Procedures"]\').'
         ),
       folderKbMap: z
@@ -37,14 +31,10 @@ export default new IntegrationDefinition({
         .optional()
         .describe(
           "Optional JSON map of kbId → array of folder prefixes used for routing.\n" +
-            'Example: {"kb‑marketing":["Campaigns"],"kb‑policies":["HR","Legal"]}'
+            'Example: {"kb-marketing":["Campaigns"],"kb-policies":["HR","Legal"]}'
         ),
     }),
   },
-
-  /******************************************************************
-   * STATE (stored per installation)
-   ******************************************************************/
   states: {
     configuration: {
       type: "integration",
@@ -59,9 +49,5 @@ export default new IntegrationDefinition({
       }),
     },
   },
-
-  /******************************************************************
-   * NO UI‑ACTIONS
-   ******************************************************************/
   actions: {},
 });
