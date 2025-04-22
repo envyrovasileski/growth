@@ -42,7 +42,7 @@ To setup the connector you need need an App registration with the correct API pe
 
 ### How to update API permissions for your app registration
 
-- Go to “API Permissions” ( it should be under the Manage Group, in your App Registration "
+- Go to “API Permissions” it should be under the Manage Group, in your App Registration "
 - Click “Add a permissions”
 - click on "Microsoft Graph".
 - Select “Application permissions” as the type of permission.
@@ -55,3 +55,45 @@ To setup the connector you need need an App registration with the correct API pe
 - Click “Add permissions.”
 - You should see All the permissions you added in the permissions list.
 - Click on “Grant admin consent for <your_org_name>”
+
+---
+
+## Folder‑to‑KB Mapping (`folderKbMap`)
+
+*This is an **optional** advanced feature. If you skip it, every file in the document library will go to the single KB you specified above.*
+
+### Why use it?
+Sometimes one SharePoint document library contains several distinct collections of content—HR procedures, Legal policies, Marketing campaigns, etc.—but you want each collection to live in its **own** Botpress KB for cleaner search results and permissions.  
+`folderKbMap` lets you do exactly that.
+
+### How it works
+* `folderKbMap` is a **JSON object** whose keys are **KB IDs** and whose values are **arrays of folder prefixes** (relative paths) to watch.  
+* During sync, the integration checks each file’s server‑relative path.  
+  * If the path **starts with** one of the prefixes you listed, that file is routed to the corresponding KB.  
+  * If no prefix matches, the file falls back to the default KB for the library.
+
+### Configuration syntax
+```jsonc
+// Example: route folders within the libraries
+"folderKbMap": {
+  "kb-id-1": ["doclib1","doclib1/ExampleFolder/2025"],
+  "kb-id-2":  ["doclib2/HR","doclib2/ExampleFolder"]
+}
+```
+*Prefixes are **case‑insensitive** and may include simple wildcards (`*`).*
+
+### Rules & limitations
+1. **No KB sharing across libraries.** A single KB **cannot** receive content from two different libraries—even via folder mapping.  
+2. **Create KBs first.** All KB IDs used in `folderKbMap` must already exist in Botpress before you save the configuration.
+3. **Recursive files** Every file within a document library, regardles whether it is in a nested folder - will be recursively copied.
+
+### Quick checklist
+| ✔ | Step |
+|---|------|
+| Create a **separate KB** for each content group you want. |
+| Identify folder (or folder‑prefix) boundaries inside the SharePoint library. |
+| Build a `folderKbMap` JSON object mapping **kbId → [prefixes]**. |
+| Add the JSON to your integration configuration. |
+| Save & verify: upload a test file in each folder and confirm it appears in the expected KB. |
+
+---
