@@ -54,4 +54,3 @@ export const guessMimeType = (filename: string): string => {
       return 'application/octet-stream'
   }
 }
-
