@@ -4,9 +4,6 @@ import * as sdk from "@botpress/sdk";
 import * as bp from ".botpress";
 import { formatPrivateKey, handleAxiosError } from "./utils";
 import { ChangeItem, ChangeResponse, SharePointItem, SharePointItemsResponse } from "./SharepointTypes";
-import path from "path";
-
-const SUPPORTED_FILE_EXTENSIONS = [".txt", ".html", ".pdf", ".doc", ".docx"];
 
 export class SharepointClient {
   private cca: msal.ConfidentialClientApplication;
@@ -14,7 +11,6 @@ export class SharepointClient {
   private siteName: string;
   private documentLibraryName: string;
 
-  // NEW: For the optional folder→KB mapping, parse from config
   private folderKbMap: Record<string, string[]> = {};
 
   constructor(integrationConfiguration: bp.configuration.Configuration, documentLibraryName: string) {
@@ -52,38 +48,35 @@ export class SharepointClient {
   }
 
   /**
- * Return all KB IDs whose prefixes match the relative path,
- * ordered longest‑to‑shortest, so callers can:
- *   • use kbIds[0] for exclusive routing  OR
- *   • iterate them all for duplicate routing
- */
-public getKbForPath(fileRelPath: string): string[] {
-  const rel = fileRelPath.toLowerCase();
-  const hits: { kbId: string; len: number }[] = [];
+   * Return all KB IDs whose prefixes match the relative path,
+   * ordered longest‑to‑shortest, so callers can:
+   *   • use kbIds[0] for exclusive routing  OR
+   *   • iterate them all for duplicate routing
+   */
+  public getKbForPath(fileRelPath: string): string[] {
+    const rel = fileRelPath.toLowerCase();
+    const hits: { kbId: string; len: number }[] = [];
 
-  for (const [kbId, folderList] of Object.entries(this.folderKbMap)) {
-    for (const raw of folderList) {
-      const f = raw.toLowerCase();
+    for (const [kbId, folderList] of Object.entries(this.folderKbMap)) {
+      for (const raw of folderList) {
+        const f = raw.toLowerCase();
 
-      // Root of the document‑library
-      if (f === "" && !rel.includes("/")) {
-        hits.push({ kbId, len: 0 });
-        continue;
-      }
+        // Root of the document‑library
+        if (f === "" && !rel.includes("/")) {
+          hits.push({ kbId, len: 0 });
+          continue;
+        }
 
-      // Exact match or prefix match
-      if (rel === f || rel.startsWith(f + "/")) {
-        hits.push({ kbId, len: f.length });
+        // Exact match or prefix match
+        if (rel === f || rel.startsWith(f + "/")) {
+          hits.push({ kbId, len: f.length });
+        }
       }
     }
+
+    // Sort longest → shortest so index 0 is the most specific KB
+    return hits.sort((a, b) => b.len - a.len).map((h) => h.kbId);
   }
-
-  // Sort longest → shortest so index 0 is the most specific KB
-  return hits.sort((a, b) => b.len - a.len).map((h) => h.kbId);
-}
-
-  
-  
 
   /**
    * Fetch an OAuth token from Azure AD
@@ -138,10 +131,9 @@ public getKbForPath(fileRelPath: string): string[] {
 
   /**
    * Downloads a file from SharePoint
-   * @param relativePath - The path to the file
+   * @param fileName - The path to the file
    * @returns - The file content as an ArrayBuffer
    */
-
   async downloadFile(fileName: string): Promise<ArrayBuffer> {
     const url = `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}/_api/web/GetFolderByServerRelativeUrl('${this.documentLibraryName}')/Files('${fileName}')/$value`;
 
@@ -158,8 +150,6 @@ public getKbForPath(fileRelPath: string): string[] {
     return arrayBuffer;
   }
   
-  
-
   /**
    * Returns the *full server-relative path*, e.g. "/sites/envy/doclib1/folder1/doc4.docx",
    * for the given list item. If none found, returns null.
@@ -240,9 +230,7 @@ public getKbForPath(fileRelPath: string): string[] {
     if (!res) {
       throw new sdk.RuntimeError(`Error getting changes`);
     }
-
-    // console.log(res)
-
+    
     return res.data.d.results;
   }
 
