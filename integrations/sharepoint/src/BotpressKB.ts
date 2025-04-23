@@ -1,67 +1,81 @@
 import * as sdk from "@botpress/sdk";
-import { getFormatedCurrTime } from "./utils";
+import { getFormatedCurrTime, guessMimeType } from "./utils";
+
 export class BotpressKB {
   private bpClient: sdk.IntegrationSpecificClient<any>;
-  private logger: sdk.IntegrationLogger;
-  private kbId: string;
+  private logger:   sdk.IntegrationLogger;
+  private kbId:     string;
 
-  constructor(bpClient: sdk.IntegrationSpecificClient<any>, kbId: string, logger: sdk.IntegrationLogger) {
+  constructor(
+    bpClient: sdk.IntegrationSpecificClient<any>,
+    kbId: string,
+    logger: sdk.IntegrationLogger
+  ) {
     this.bpClient = bpClient;
-    this.logger = logger;
+    this.kbId = kbId;
+    this.logger   = logger;
+  }
+
+  public setKbId(kbId: string) {
     this.kbId = kbId;
   }
-  private log(message: string): void {
-    this.logger.forBot().info(`[${getFormatedCurrTime()} - BP KB] ${message}`);
+
+  private log(msg: string) {
+    this.logger.forBot().info(`[${getFormatedCurrTime()} - BP KB] ${msg}`);
   }
 
-  async getFile(spId: string): Promise<unknown> {
-    const files = await this.bpClient.listFiles({ tags: { spId: spId } });
-    return files.files[0];
+  private async findFileBySpId(spId: string) {
+    const res = await this.bpClient.listFiles({ tags: { spId, kbId: this.kbId } });
+    return res.files[0];
+  }
+
+  /** Build a workspace‑wide unique key */
+  private buildKey(filename: string): string {
+    return `${this.kbId}/${filename}`;   // e.g.  kb‑xxx/doclib1/…/file.docx
   }
 
   async addFile(spId: string, filename: string, content: ArrayBuffer): Promise<void> {
-    this.log(`Adding file: ${filename}`);
+    this.log(`Add → ${filename}`);
 
     await this.bpClient.uploadFile({
-      key: filename,
+      key: this.buildKey(filename),
       content,
       index: true,
+      contentType: guessMimeType(filename),
       tags: {
         source: "knowledge-base",
-        kbId: this.kbId,
-        spId: spId,
+        kbId:   this.kbId,
+        spId:   spId,
       },
     });
+  }
 
-    this.log(`File added: ${filename}`);
+  async updateFile(spId: string, filename: string, content: ArrayBuffer): Promise<void> {
+    this.log(`Update → ${filename}`);
+
+    const existing = await this.findFileBySpId(spId);
+    if (existing) {
+      await this.bpClient.deleteFile({ id: existing.id });
+    }
+    await this.addFile(spId, filename, content);
   }
 
   async deleteFile(spId: string): Promise<void> {
-    this.log(`Deleting file: ${spId}`);
-
-    const existingFiles = await this.bpClient.listFiles({ tags: { spId: spId } });
-    const existingFile = existingFiles.files[0];
-    if (!existingFile) {
-      throw new sdk.RuntimeError(`File with id ${spId} not found`);
+    const existing = await this.findFileBySpId(spId);
+  
+    if (!existing) {
+      this.log(`Delete skipped - no file with spId=${spId} in KB ${this.kbId}`);
+      return;
     }
-
-    await this.bpClient
-      .deleteFile({ id: existingFile.id })
-      .then(() => {
-        this.log(`File deleted: ${spId}`);
-      })
-      .catch(() => {
-        this.log(`Error deleting file: ${spId}`);
-      });
+  
+    this.log(`Delete → ${existing.key}  (spId=${spId})`);
+    await this.bpClient.deleteFile({ id: existing.id });
   }
 
   async deleteAllFiles(): Promise<void> {
-    this.log(`Deleting all files in knowledge base: ${this.kbId}`);
-    const existingFiles = await this.bpClient.listFiles({ tags: { kbId: this.kbId } });
-
-    const deletePromises = existingFiles.files.map(async (file) => await this.bpClient.deleteFile({ id: file.id }));
-
-    await Promise.all(deletePromises);
-    this.log(`All files deleted in knowledge base: ${this.kbId}`);
+    this.log(`Delete ALL files in KB ${this.kbId}`);
+    const res = await this.bpClient.listFiles({ tags: { kbId: this.kbId } });
+    this.log(res.files.map((f) => `spId=${f.tags.spId}  key=${f.key}`).join("\n"));
+    await Promise.all(res.files.map((f) => this.bpClient.deleteFile({ id: f.id })));
   }
 }

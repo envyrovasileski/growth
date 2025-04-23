@@ -36,3 +36,21 @@ export const getFormatedCurrTime = (): string => {
 export const formatPrivateKey = (privateKey: string) => {
   return `-----BEGIN PRIVATE KEY-----\n${privateKey.split(" ").join("\n")}\n-----END PRIVATE KEY-----`;
 };
+
+export const guessMimeType = (filename: string): string => {
+  const ext = filename.toLowerCase().split('.').pop() ?? ''
+  switch (ext) {
+    case 'txt':
+      return 'text/plain'
+    case 'html':
+      return 'text/html'
+    case 'pdf':
+      return 'application/pdf'
+    case 'doc':
+      return 'application/msword'
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    default:
+      return 'application/octet-stream'
+  }
+}

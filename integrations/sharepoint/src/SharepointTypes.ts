@@ -60,7 +60,7 @@ export interface ChangeResponse {
 export interface ChangeItem {
   __metadata: Metadata;
   ChangeToken: ChangeToken;
-  ChangeType: 1 | 2 | 3 | 4; // The entire enum is available at https://learn.microsoft.com/en-us/previous-versions/office/sharepoint-csom/ee543793(v=office.15)
+  ChangeType: 1 | 2 | 3 | 4 | 5 | 6 | 7; // The entire enum is available at https://learn.microsoft.com/en-us/previous-versions/office/sharepoint-csom/ee543793(v=office.15)
   SiteId: string;
   Time: string; // ISO 8601 format
   Editor: string;
