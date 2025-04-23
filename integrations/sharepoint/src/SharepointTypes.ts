@@ -57,6 +57,9 @@ export interface ChangeResponse {
   };
 }
 
+/*
+  Due to reliability issues, Moves and Copies are not supported. The user must Upload or Create the file instead.
+*/
 export interface ChangeItem {
   __metadata: Metadata;
   ChangeToken: ChangeToken;
