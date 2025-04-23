@@ -1,13 +1,18 @@
-import {IntegrationDefinitionProps, messages} from '@botpress/sdk'
+import {z, IntegrationDefinitionProps, messages} from '@botpress/sdk'
+
+const withUserId = <S extends z.AnyZodObject>(s: { schema: S }) => ({
+  ...s,
+  schema: s.schema.extend({ userId: z.string().optional() }),
+})
 
 export const channels = {
   hitl: {
     messages: {
-      text: messages.defaults.text,
-      image: messages.defaults.image,
-      file: messages.defaults.file,
-      audio: messages.defaults.audio,
-      video: messages.defaults.video,
+      text: withUserId(messages.defaults.text),
+      image: withUserId(messages.defaults.image),
+      file: withUserId(messages.defaults.file),
+      audio: withUserId(messages.defaults.audio),
+      video: withUserId(messages.defaults.video),
     },
     conversation: {
       tags: {

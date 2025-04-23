@@ -39,31 +39,23 @@ export const channels = {
           return
         }
 
-        if(!conversation.tags.assignedAt && ctx.configuration.stopHITLEscalationKeywords?.length) {
-          const containedKeyword = ctx.configuration.stopHITLEscalationKeywords.find( (keyword) => {
-            return !!payload.text?.includes(keyword)
+        if(!conversation.tags.assignedAt && ctx.configuration.conversationNotAssignedMessage?.length) {
+          const { user: systemUser } = await client.getOrCreateUser({
+            name: 'System',
+            tags: {
+              id: conversation.id,
+            },
           })
-          logger.forBot().warn(JSON.stringify({ containedKeyword }))
-          if(containedKeyword) {
-            await closeConversation({ conversation, ctx, client, logger })
-          } else {
-            const { user: systemUser } = await client.getOrCreateUser({
-              name: 'System',
-              tags: {
-                id: conversation.id,
-              },
-            })
 
-            await client.createMessage({
-              tags: {},
-              type: 'text',
-              userId: systemUser?.id as string,
-              conversationId: conversation.id,
-              payload: {
-                text: ctx.configuration.conversationNotAssignedMessage || 'Conversation not assigned',
-              },
-            })
-          }
+          await client.createMessage({
+            tags: {},
+            type: 'text',
+            userId: systemUser?.id as string,
+            conversationId: conversation.id,
+            payload: {
+              text: ctx.configuration.conversationNotAssignedMessage || 'Conversation not assigned',
+            },
+          })
           return
         }
 
@@ -100,6 +92,7 @@ export const channels = {
         await salesforceClient.sendMessage(payload.videoUrl)
       },
       file: async (props: bp.AnyMessageProps) => {
+        console.log('Will send file', { payload: props.payload })
         const { payload } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
         await salesforceClient.sendMessage(payload.fileUrl)
