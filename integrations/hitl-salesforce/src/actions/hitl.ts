@@ -56,7 +56,7 @@ export const startHitl: bp.IntegrationProps['actions']['startHitl'] = async ({ c
 
     await salesforceClient.createConversation(newSalesforceConversationId, {
       firstName: (splitName?.length && splitName[0]) || 'Anon',
-      _lastName: splitName && splitName?.length > 1 && splitName[splitName.length] || '',
+      _lastName: (splitName && splitName?.length > 1 && splitName[splitName.length]) || '',
       _email: user.tags?.email || 'anon@email.com',
     })
 
@@ -66,8 +66,8 @@ export const startHitl: bp.IntegrationProps['actions']['startHitl'] = async ({ c
       payload: {
         conversationId: conversation.id,
         userId,
-        title,
-        description
+        title: title ?? 'Untitled ticket',
+        description,
       },
     })
 
