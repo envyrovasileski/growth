@@ -6,15 +6,26 @@ The sharepoint library connector integration allows you to setup a connector bet
 
 ## Configuration
 
-To setup the connector you need need an App registration with the correct API permissions in Microsoft Entra admin center and the following details (If you have questions regarding where to obtain this information, check out the how to's section below):
+Add the following keys to the integration’s `configuration` block:
 
-- Client ID: This is the Application (client) ID of your App registration.
-- Tenant ID: This is the Directory (tenant) ID of your App registration.
-- Thumbprint: This is the thumbprint of your certificate you uploaded to your App registration.
-- Private key: This is the content of your private key that you used to sign the certification. ( The content between the "-----BEGIN PRIVATE KEY-----" and "-----END PRIVATE KEY-----")
-- Site Name: The name of the Sharepoint site.
-- Document Library Name: The name of the Document Library that you want to sync a Botpress KB with.
-- KB ID: The ID of the KB that you want to store the synced Documents from the Document Library.
+- **clientId** (required) — Application (client) ID of your Microsoft Entra (Azure AD) app registration.  
+- **tenantId** (required) — Directory (tenant) ID of the same app registration.  
+- **thumbprint** (required) — Thumbprint of the certificate uploaded to the app registration.  
+- **privateKey** (required) — PEM-formatted private key that matches the certificate (everything between `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----`).  
+- **primaryDomain** (required) — SharePoint primary domain (the part before `.sharepoint.com`).  
+  *Example*: `contoso`  
+- **siteName** (required) — Name of the SharePoint site that owns the document libraries you want to sync.  
+- **documentLibraryNames** (optional) — Comma-separated list **or** JSON array of document libraries to sync.  
+  *Examples*:  
+  `Policies,Procedures`  
+  `["Policies","Procedures"]`  
+- **folderKbMap** (optional) — JSON object that maps `kbId` ⇒ array of folder prefixes for routing files to specific KBs.  
+  *Example*:  
+  `{"kb-marketing":["Campaigns"],"kb-policies":["HR","Legal"]}`  
+
+**Tip:**  
+- If you omit `documentLibraryNames`, **all** document libraries in the specified site will be synced.  
+- If you omit `folderKbMap`, every file is routed to the default KB configured for its library.
 
 ## How to's
 

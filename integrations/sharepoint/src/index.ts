@@ -29,7 +29,7 @@ export default new bp.Integration({
 
       const changeToken = await spClient.getLatestChangeToken();
       if (!changeToken) {
-        throw new sdk.RuntimeError(`(${lib}) Cannot obtain initial change token`);
+        throw new sdk.RuntimeError(`(${lib}) Ensure document library has at least one file.`);
       }
 
       subscriptions[lib] = { webhookSubscriptionId, changeToken };

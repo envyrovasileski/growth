@@ -43,7 +43,7 @@ export class SharepointSync {
     // 2 - Determine which KBs those files map to
     const kbIdsToClear = new Set<string>()
     for (const doc of docs) {
-      const spPathOrNull = await this.sharepointClient.getFileName(doc.Id)
+      const spPathOrNull = await this.sharepointClient.getFilePath(doc.Id)
       if (!spPathOrNull) {
         continue
       }
@@ -74,7 +74,7 @@ export class SharepointSync {
     // 4 - Download & re‑add each file
     await Promise.all(
       docs.map(async (doc) => {
-        const spPathOrNull = await this.sharepointClient.getFileName(doc.Id)
+        const spPathOrNull = await this.sharepointClient.getFilePath(doc.Id)
         if (!spPathOrNull) {
           return
         }
@@ -124,7 +124,7 @@ export class SharepointSync {
       switch (ch.ChangeType) {
         /* 1 = Add */
         case 1: {
-          const spPath = await this.sharepointClient.getFileName(ch.ItemId);
+          const spPath = await this.sharepointClient.getFilePath(ch.ItemId);
           if (!spPath || !SUPPORTED_FILE_EXTENSIONS.includes(path.extname(spPath))) break;
 
           const relPath = decodeURIComponent(spPath.replace(/^\/sites\/[^/]+\//, ""));
@@ -140,7 +140,7 @@ export class SharepointSync {
 
         /* 2 = Update */
         case 2: {
-          const spPath = await this.sharepointClient.getFileName(ch.ItemId);
+          const spPath = await this.sharepointClient.getFilePath(ch.ItemId);
           if (!spPath) break;
 
           const relPath = decodeURIComponent(spPath.replace(/^\/sites\/[^/]+\//, ""));

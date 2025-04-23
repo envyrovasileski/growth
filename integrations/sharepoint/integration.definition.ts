@@ -21,14 +21,14 @@ export default new IntegrationDefinition({
 
       documentLibraryNames: z
         .string()
-        .optional()
+        .min(1)
         .describe(
           "Comma-separated list **or** JSON array of Document Libraries to sync " +
             '(e.g. "Policies,Procedures" or \'["Policies","Procedures"]\').'
         ),
       folderKbMap: z
         .string()
-        .optional()
+        .min(1)
         .describe(
           "Optional JSON map of kbId → array of folder prefixes used for routing.\n" +
             'Example: {"kb-marketing":["Campaigns"],"kb-policies":["HR","Legal"]}'

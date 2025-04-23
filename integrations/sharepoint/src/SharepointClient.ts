@@ -154,7 +154,7 @@ export class SharepointClient {
    * Returns the *full server-relative path*, e.g. "/sites/envy/doclib1/folder1/doc4.docx",
    * for the given list item. If none found, returns null.
    */
-  async getFileName(listItemIndex: number): Promise<string | null> {
+  async getFilePath(listItemIndex: number): Promise<string | null> {
     const url =
       `https://${this.primaryDomain}.sharepoint.com/sites/${this.siteName}` +
       `/_api/web/lists/getbytitle('${this.documentLibraryName}')/items(${listItemIndex})` +
