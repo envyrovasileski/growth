@@ -27,13 +27,13 @@ class MessagingApi {
     // Fill default values
     this._config = SFMessagingConfigSchema.parse(_config)
 
-    this._client.interceptors.request.use((axionsConfig) => {
+    this._client.interceptors.request.use((axiosConfig) => {
       // @ts-ignore
-      axionsConfig.headers = {
-        ...axionsConfig.headers,
+      axiosConfig.headers = {
+        ...axiosConfig.headers,
         ...this._getMessagingConfig().headers,
       }
-      return axionsConfig
+      return axiosConfig
     })
   }
 
@@ -50,15 +50,16 @@ class MessagingApi {
         headers: {
           ...this._getMessagingConfig().headers,
         },
-        createConversationData
+        createConversationData,
       })
 
       const { data } = await this._client.post('/conversation', createConversationData)
 
       return data
-    } catch (e: any) {
-      this._logger.forBot().error('Failed to create conversation on Salesforce: ' + e.message)
-      throw new RuntimeError('Failed to create conversation on Salesforce: ' + e.message)
+    } catch (thrown: unknown) {
+      const error = thrown instanceof Error ? thrown : new Error(String(thrown))
+      this._logger.forBot().error('Failed to create conversation on Salesforce: ' + error.message)
+      throw new RuntimeError('Failed to create conversation on Salesforce: ' + error.message)
     }
   }
 
@@ -77,9 +78,10 @@ class MessagingApi {
 
       this._session = { ...this._session, accessToken: data.accessToken }
       return data
-    } catch (e) {
-      this._logger.forBot().error('Failed to create conversation on Salesforce: ' + e.message)
-      throw new RuntimeError('Failed to create conversation on Salesforce: ' + e.message)
+    } catch (thrown: unknown) {
+      const error = thrown instanceof Error ? thrown : new Error(String(thrown))
+      this._logger.forBot().error('Failed to create conversation on Salesforce: ' + error.message)
+      throw new RuntimeError('Failed to create conversation on Salesforce: ' + error.message)
     }
   }
 
@@ -140,9 +142,10 @@ class MessagingApi {
 
       this._session.sseKey = data.data.key
       return data
-    } catch (e) {
-      this._logger.forBot().error('Failed to start SSE Session with TT: ' + e.message)
-      throw new RuntimeError('Failed to start SSE Session with TT: ' + e.message)
+    } catch (thrown: unknown) {
+      const error = thrown instanceof Error ? thrown : new Error(String(thrown))
+      this._logger.forBot().error('Failed to start SSE Session with TT: ' + error.message)
+      throw new RuntimeError('Failed to start SSE Session with TT: ' + error.message)
     }
   }
 
@@ -154,8 +157,9 @@ class MessagingApi {
           'transport-key': transportKey,
         },
       })
-    } catch (e: any) {
-      this._logger.forBot().error('Failed to stop SSE Session with TT: ' + e.message)
+    } catch (thrown: unknown) {
+      const error = thrown instanceof Error ? thrown : new Error(String(thrown))
+      this._logger.forBot().error('Failed to stop SSE Session with TT: ' + error.message)
     }
   }
 
