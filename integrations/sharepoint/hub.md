@@ -27,6 +27,9 @@ Add the following keys to the integration’s `configuration` block:
 - If you omit `documentLibraryNames`, **all** document libraries in the specified site will be synced.  
 - If you omit `folderKbMap`, every file is routed to the default KB configured for its library.
 
+> [!IMPORTANT]  
+> Due to reliability issues, **Moves** and **Copies** are not supported. Those events from sharepoint will not reflect in the knowledge bases. If you wish to move/copy a file to another location, **Upload** or **Create** the file instead. 
+
 ## How to's
 
 ### How to register a app on Microsoft Entra admin center
