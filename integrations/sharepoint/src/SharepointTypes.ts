@@ -58,7 +58,11 @@ export interface ChangeResponse {
 }
 
 /*
-  Due to reliability issues, Moves and Copies are not supported. The user must Upload or Create the file instead.
+  Due to reliability issues, Moves and Copies are not supported.
+    - Copies would come in as create events for example, and would disrupt the uniqueness of the files.
+    - Moves often don't receive webhook events.
+
+  As a work around the user must Upload or Create the file instead.
 */
 export interface ChangeItem {
   __metadata: Metadata;
