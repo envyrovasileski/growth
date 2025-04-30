@@ -89,7 +89,7 @@ export const channels = {
       image: async (props: bp.MessageProps['hitl']['image']) => {
         const { payload } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
-        await salesforceClient.sendMessage(payload.imageUrl)
+        await salesforceClient.sendFile({ fileUrl: payload.imageUrl })
       },
       video: async (props: bp.MessageProps['hitl']['video']) => {
         const { payload } = props
@@ -97,11 +97,10 @@ export const channels = {
         await salesforceClient.sendMessage(payload.videoUrl)
       },
       file: async (props: bp.MessageProps['hitl']['file']) => {
-        console.log('Will send file', { payload: props.payload })
-        const { payload } = props
+        const { payload: { title, fileUrl } } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
-        await salesforceClient.sendMessage(payload.fileUrl)
-      },
+        await salesforceClient.sendFile({ fileUrl, title })
+      }
     },
   },
 } satisfies bp.IntegrationProps['channels']
