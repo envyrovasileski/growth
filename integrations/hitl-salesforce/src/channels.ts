@@ -16,30 +16,33 @@ const getSalesforceClientFromMessage = async (props: bp.AnyMessageProps) => {
     name: 'messaging',
   })
   return getSalesforceClient(
-      logger,
-      { ...(ctx.configuration as SFMessagingConfig) },
-      {
-        accessToken,
-        sseKey: conversation.tags.transportKey,
-        conversationId: conversation.tags.id,
-      }
+    logger,
+    { ...(ctx.configuration as SFMessagingConfig) },
+    {
+      accessToken,
+      sseKey: conversation.tags.transportKey,
+      conversationId: conversation.tags.id,
+    }
   )
 }
 
 export const channels = {
   hitl: {
     messages: {
-      text: async (props: bp.AnyMessageProps) => {
+      text: async (props: bp.MessageProps['hitl']['text']) => {
         const { client, ctx, conversation, logger, payload } = props
 
         if (isConversationClosed(conversation)) {
-          logger.forBot().error('Tried to send a message from a conversation that is already closed: ' + JSON.stringify({conversation}, null, 2))
-          // There are some issues on the current HITL Agent that keeps sending messages to the downstream, disabling this for now
-          // await closeConversation({ conversation, ctx, client, logger, force: true, forceDelay: true })
+          logger
+            .forBot()
+            .error(
+              'Tried to send a message from a conversation that is already closed: ' +
+                JSON.stringify({ conversation }, null, 2)
+            )
           return
         }
 
-        if(!conversation.tags.assignedAt && ctx.configuration.conversationNotAssignedMessage?.length) {
+        if (!conversation.tags.assignedAt && ctx.configuration.conversationNotAssignedMessage?.length) {
           const { user: systemUser } = await client.getOrCreateUser({
             name: 'System',
             tags: {
@@ -63,40 +66,42 @@ export const channels = {
 
         try {
           await salesforceClient.sendMessage(payload.text)
-        } catch (err: any) {
-          logger.forBot().error('Failed to send message: ' + err.message)
+        } catch (thrown: unknown) {
+          const error = thrown instanceof Error ? thrown : new Error(String(thrown))
+          logger.forBot().error('Failed to send message: ' + error.message)
 
-          if ((err as AxiosError)?.response?.status === 403) {
+          if ((error as AxiosError)?.response?.status === 403) {
             // Session is no longer valid
             try {
               await closeConversation({ conversation, ctx, client, logger, force: true })
-            } catch (e) {
-              logger.forBot().error('Failed to finish invalid session: ' + err.message)
+            } catch (thrown2: unknown) {
+              const error2 = thrown2 instanceof Error ? thrown2 : new Error(String(thrown2))
+              logger.forBot().error('Failed to finish invalid session: ' + error2.message)
             }
           }
         }
       },
-      audio: async (props: bp.AnyMessageProps) => {
+      audio: async (props: bp.MessageProps['hitl']['audio']) => {
         const { payload } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
         await salesforceClient.sendMessage(payload.audioUrl)
       },
-      image: async (props: bp.AnyMessageProps) => {
+      image: async (props: bp.MessageProps['hitl']['image']) => {
         const { payload } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
         await salesforceClient.sendMessage(payload.imageUrl)
       },
-      video: async (props: bp.AnyMessageProps) => {
+      video: async (props: bp.MessageProps['hitl']['video']) => {
         const { payload } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
         await salesforceClient.sendMessage(payload.videoUrl)
       },
-      file: async (props: bp.AnyMessageProps) => {
+      file: async (props: bp.MessageProps['hitl']['file']) => {
         console.log('Will send file', { payload: props.payload })
         const { payload } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
         await salesforceClient.sendMessage(payload.fileUrl)
-      }
+      },
     },
   },
 } satisfies bp.IntegrationProps['channels']

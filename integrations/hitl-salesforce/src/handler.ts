@@ -3,7 +3,12 @@ import { SFMessagingConfig } from './definitions/schemas'
 import { closeConversation, executeOnConversationClose, isConversationClosed } from './events/conversation-close'
 import { executeOnConversationMessage } from './events/conversation-message'
 import { executeOnParticipantChanged } from './events/participant-changed'
-import type { TriggerPayload } from './triggers'
+import type {
+  CloseConversationMessagingTrigger,
+  MessageMessagingTrigger,
+  ParticipantChangedMessagingTrigger,
+  TriggerPayload,
+} from './triggers'
 import { IntegrationProps } from '.botpress'
 
 export const handler: IntegrationProps['handler'] = async (props) => {
@@ -31,7 +36,7 @@ export const handler: IntegrationProps['handler'] = async (props) => {
     },
   })
 
-  if(!conversation) {
+  if (!conversation) {
     logger.forBot().warn(`No conversation for transport key ${trigger.transport.key}, ignoring event`)
     return
   }
@@ -47,21 +52,21 @@ export const handler: IntegrationProps['handler'] = async (props) => {
 
       try {
         messagingTrigger.data = JSON.parse(messagingTrigger?.data)
-      } catch (e) {
+      } catch {
         return /* Ignore non json data */
       }
 
       switch (messagingTrigger.event) {
         case 'CONVERSATION_MESSAGE':
           await executeOnConversationMessage({
-            messagingTrigger,
+            messagingTrigger: messagingTrigger as MessageMessagingTrigger,
             conversation,
-            ...props
+            ...props,
           })
           break
         case 'CONVERSATION_PARTICIPANT_CHANGED':
           await executeOnParticipantChanged({
-            messagingTrigger,
+            messagingTrigger: messagingTrigger as ParticipantChangedMessagingTrigger,
             ctx,
             conversation,
             client,
@@ -71,7 +76,7 @@ export const handler: IntegrationProps['handler'] = async (props) => {
         case 'CONVERSATION_CLOSE_CONVERSATION':
           logger.forBot().warn('Got CONVERSATION_CLOSE_CONVERSATION')
           await executeOnConversationClose({
-            messagingTrigger,
+            messagingTrigger: messagingTrigger as CloseConversationMessagingTrigger,
             ctx,
             conversation,
             client,
@@ -121,5 +126,4 @@ export const handler: IntegrationProps['handler'] = async (props) => {
       logger.forBot().warn('Unsupported trigger type: ' + trigger.type)
       break
   }
-
 }
