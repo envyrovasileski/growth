@@ -100,6 +100,45 @@ export const channels = {
         const { payload: { title, fileUrl } } = props
         const salesforceClient = await getSalesforceClientFromMessage(props)
         await salesforceClient.sendFile({ fileUrl, title })
+      },
+      bloc: async (props: bp.MessageProps['hitl']['bloc']) => {
+        const salesforceClient = await getSalesforceClientFromMessage(props)
+        for (const item of props.payload.items) {
+          switch (item.type) {
+            case 'text':
+              await salesforceClient.sendMessage(item.payload.text)
+              break
+            case 'markdown':
+              await salesforceClient.sendMessage(item.payload.markdown)
+              break
+            case 'image':
+              await salesforceClient.sendFile({ fileUrl: item.payload.imageUrl })
+              break
+            case 'video':
+              await salesforceClient.sendMessage(item.payload.videoUrl)
+              break
+            case 'audio':
+              await salesforceClient.sendMessage(item.payload.audioUrl)
+              break
+            case 'file':
+              const { title: fileTitle, fileUrl } = item.payload
+              await salesforceClient.sendFile({ fileUrl, title: fileTitle })
+              break
+            case 'location':
+              const { title, address, latitude, longitude } = item.payload
+              const messageParts = []
+
+              if (title) {
+                messageParts.push(title, '')
+              }
+              if (address) {
+                messageParts.push(address, '')
+              }
+              messageParts.push(`Latitude: ${latitude}`, `Longitude: ${longitude}`)
+              await salesforceClient.sendMessage(messageParts.join('\n'))
+              break
+          }
+        }
       }
     },
   },
