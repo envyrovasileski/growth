@@ -52,7 +52,7 @@ This integration allows you to connect your Botpress chatbot with Google Chat sp
      - Enable interactive features
      - Enable receiving 1-1 messages
      - Enable joining spaces and group conversations
-   - **HTTP Endpoint URL**: Set this to your Botpress webhook URL
+   - **HTTP Endpoint URL**: Set this to your Botpress webhook URL found in the Google Chat Integration Configuration.
 
 ### 4. Configure the Integration in Botpress
 
