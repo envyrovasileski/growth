@@ -2,7 +2,7 @@ import { google } from 'googleapis'
 import * as bp from '.botpress'
 
 export class GoogleChatClient {
-  private chat: any
+  private chat: ReturnType<typeof google.chat>
   private ctx: bp.Context
 
   constructor(ctx: bp.Context) {
