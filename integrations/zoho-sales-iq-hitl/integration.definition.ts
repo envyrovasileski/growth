@@ -5,7 +5,7 @@ import { integrationName } from './package.json';
 export default new IntegrationDefinition({
   name: integrationName,
   title: 'Zoho Sales IQ HITL',
-  version: '2.0.0',
+  version: '2.0.1',
   icon: 'icon.svg',
   description: 'This integration allows your bot to use Zoho Sales IQ as a HITL Provider',
   readme: 'hub.md',
