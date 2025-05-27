@@ -1,6 +1,3 @@
-/******************************************************************
- *  SharePoint ⇆ Botpress integration (multi‑library edition)
- ******************************************************************/
 import * as sdk from "@botpress/sdk";
 import * as bp from ".botpress";
 import * as xlsx from 'xlsx';
