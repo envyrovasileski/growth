@@ -104,30 +104,24 @@ export class SharepointClient {
   }
 
   public async getFileContentByUrl(fileUrl: string): Promise<Buffer> {
-    let parsedUrl;
+    let relativePath: string;
+
     try {
-      parsedUrl = new URL(fileUrl);
+      // Handle relative path (e.g. /NewDL/Book.xlsx)
+      relativePath = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
     } catch (e: any) {
-      console.error(`SharepointClient: Invalid SharePoint File URL provided: ${fileUrl}`, e.message);
-      throw new Error(`Invalid SharePoint File URL: "${fileUrl}". Error: ${e.message}`);
+      console.error(`SharepointClient: Invalid SharePoint file path provided: ${fileUrl}`, e.message);
+      throw new Error(`Invalid SharePoint file path: "${fileUrl}". Error: ${e.message}`);
     }
 
     const siteId = await this.getSiteId();
-
-    // Extract the path components after /sites/{siteName}/
-    const sitePathSegment = `/sites/${this.siteName}/`;
-    let relativePath = parsedUrl.pathname;
-    
-    if (relativePath.toLowerCase().startsWith(sitePathSegment.toLowerCase())) {
-      relativePath = relativePath.substring(sitePathSegment.length);
-    }
 
     // Split the path to separate document library from file path
     // e.g., "doclib1/Book.xlsx" -> ["doclib1", "Book.xlsx"]
     const pathParts = relativePath.split('/').filter(part => part);
     
     if (pathParts.length < 2) {
-      throw new Error(`Invalid file path. Expected format: /sites/{siteName}/{documentLibrary}/{filePath}`);
+      throw new Error(`Invalid file path. Expected format: /{documentLibrary}/{filePath}`);
     }
 
     const documentLibraryName = pathParts[0];

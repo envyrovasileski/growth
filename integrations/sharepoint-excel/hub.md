@@ -19,7 +19,13 @@ To set up the connector, you need an App registration with the correct API permi
 ## Action: Sync Excel File
 
 ### Inputs
-- **sharepointFileUrl**: Full URL to the Excel file in SharePoint (e.g. `https://contoso.sharepoint.com/sites/envy/doclib1/Book.xlsx`).
+- **sharepointFileUrl**: Relative path to the Excel file in SharePoint. The path should be in the format `/{DOCUMENT_LIBRARY}/{file_path}` where:
+  - `DOCUMENT_LIBRARY` is the name of your SharePoint document library (e.g., "Documents", "Shared Documents", or any custom library name)
+  - `file_path` is the path to your Excel file within that library, including any subfolders
+  - Examples:
+    - `/Documents/Book.xlsx` - File in the root of the Documents library
+    - `/Shared Documents/Reports/2024/Book.xlsx` - File in a nested folder structure
+    - `/MyCustomLibrary/Data/Book.xlsx` - File in a custom document library
 - **sheetTableMapping**: Map sheets to tables. Format can be either:
   - Comma-separated: `Sheet1:table1,Sheet2:table2`
   - JSON: `{ "Sheet1": "table1", "Sheet2": "table2" }`
@@ -29,7 +35,7 @@ To set up the connector, you need an App registration with the correct API permi
 ### Example
 ```json
 {
-  "sharepointFileUrl": "https://contoso.sharepoint.com/sites/envy/doclib1/Book.xlsx",
+  "sharepointFileUrl": "/doclib1/Book.xlsx",
   "sheetTableMapping": "Sheet1:Customers,Sheet2:Orders"
 }
 ```
