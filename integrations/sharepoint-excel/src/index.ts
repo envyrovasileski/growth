@@ -278,9 +278,19 @@ export default new bp.Integration({
               }).filter(obj => Object.keys(obj).length > 0); 
               
               if (rowsToInsert.length > 0) {
-                // Create rows in the table
-                await axios.post(`${apiBaseUrl}/${tableId}/rows`, { rows: rowsToInsert }, { headers: httpHeaders }); 
-                logger.forBot().info(`Successfully populated table "${tableNameForSheet}" with ${rowsToInsert.length} rows.`);
+                // Create rows in the table with batching
+                const BATCH_SIZE = 50;
+                const totalRows = rowsToInsert.length;
+                let processedRows = 0;
+
+                while (processedRows < totalRows) {
+                  const batch = rowsToInsert.slice(processedRows, processedRows + BATCH_SIZE);
+                  await axios.post(`${apiBaseUrl}/${tableId}/rows`, { rows: batch }, { headers: httpHeaders });
+                  processedRows += batch.length;
+                  logger.forBot().info(`Processed ${processedRows}/${totalRows} rows for table "${tableNameForSheet}"`);
+                }
+                
+                logger.forBot().info(`Successfully populated table "${tableNameForSheet}" with ${rowsToInsert.length} rows`);
                 
                 processedSheets.push({
                   sheetName: currentSheetName,
