@@ -3,12 +3,10 @@ import { HubSpotApi } from 'src/client'
 
 export const handleOperatorReplied = async ({
   hubspotEvent,
-  client,
-  hubSpotClient,
+  client
 }: {
   hubspotEvent: any
-  client: bp.Client,
-  hubSpotClient: HubSpotApi
+  client: bp.Client
 }) => {
   const { conversation } = await client.getOrCreateConversation({
     channel: 'hitl',
@@ -17,14 +15,9 @@ export const handleOperatorReplied = async ({
     },
   })
 
-  let recipientActorId = hubspotEvent.message?.recipients?.[0]?.actorId
-  
-  // Stripping the "V-" prefix from the recipientActorId
-  let recipientActorPhoneNumber = await hubSpotClient.getActorPhoneNumber(recipientActorId.substring(2))
-
   const { user } = await client.getOrCreateUser({
     tags: {
-      id: recipientActorPhoneNumber,
+      id: hubspotEvent.message?.senders?.[0]?.actorId,
     },
   })
 
