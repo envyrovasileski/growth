@@ -30,10 +30,15 @@ export interface HubSpotEvent {
 export interface HubSpotMessage {
   conversationsThreadId: string
   text: string
+  senders?: HubSpotSender[]
   recipients?: HubSpotRecipient[]
 }
 
 export interface HubSpotRecipient {
+  actorId: string
+}
+
+export interface HubSpotSender {
   actorId: string
 }
 
@@ -67,7 +72,6 @@ export interface ConversationCompletedParams {
 export interface OperatorSendMessageParams {
   hubspotEvent: HubSpotEvent
   client: Client
-  hubSpotClient: HubSpotApi
 }
 
 // API Response Types

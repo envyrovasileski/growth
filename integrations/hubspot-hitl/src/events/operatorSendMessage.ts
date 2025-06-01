@@ -1,5 +1,4 @@
 import * as bp from '.botpress'
-import { HubSpotApi } from 'src/client'
 
 export const handleOperatorReplied = async ({
   hubspotEvent,
