@@ -74,7 +74,7 @@ export const handler: bp.IntegrationProps['handler'] = async ({ ctx, req, logger
     logger.forBot().info(`Text: ${message}`)
     logger.forBot().info(`Integration Thread ID: ${integrationThreadId}`)
 
-    await handleOperatorReplied({ hubspotEvent: payload, client, hubSpotClient })
+    await handleOperatorReplied({ hubspotEvent: payload, client })
     return
   }
 
